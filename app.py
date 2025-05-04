@@ -7,7 +7,7 @@ import google.generativeai as genai
 
 # --- CONFIG ---
 GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]  # Set this in Streamlit secrets
-genai.configure(api_key=GEMINI_API_KEY)
+genai.configure(api_key=AIzaSyCBT3bI0MlQgLk2wk_aOoUF52H5p5rAqMA)
 
 # --- FUNCTIONS ---
 
