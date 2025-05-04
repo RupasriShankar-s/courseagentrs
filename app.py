@@ -30,7 +30,7 @@ def scrape_courses(keyword):
     return courses
 
 def match_courses_with_gemini(user_interest, courses):
-    model = genai.GenerativeModel('gemini-1.5-pro')
+    model = genai.GenerativeModel('models/text-bison-001')
     
     prompt = f"""
 You are an academic advisor at UC Berkeley.
