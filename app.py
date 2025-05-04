@@ -1,7 +1,6 @@
-
+# app.py
 import streamlit as st
-import requests
-from bs4 import BeautifulSoup
+import pandas as pd
 from fpdf import FPDF
 import google.generativeai as genai
 
@@ -11,26 +10,20 @@ genai.configure(api_key=GEMINI_API_KEY)
 
 # --- FUNCTIONS ---
 
-def scrape_courses(keyword):
-    search_url = f"https://classes.berkeley.edu/search/class?page=0&f[0]=search_class_query%3A{keyword}"
-    response = requests.get(search_url)
-    soup = BeautifulSoup(response.text, 'html.parser')
-    course_blocks = soup.find_all('div', class_='search-result')
-    courses = []
+def load_courses():
+    return pd.read_csv("berkeley_courses.csv")
 
-    for block in course_blocks:
-        title = block.find('div', class_='class-title').text.strip() if block.find('div', class_='class-title') else "N/A"
-        description = block.find('div', class_='description').text.strip() if block.find('div', class_='description') else "N/A"
-        link = "https://classes.berkeley.edu" + block.find('a')['href'] if block.find('a') else "N/A"
-        courses.append({
-            'title': title,
-            'description': description,
-            'link': link
-        })
-    return courses
+def filter_courses(user_interest, courses_df):
+    matches = []
+    user_interest = user_interest.lower()
+
+    for _, row in courses_df.iterrows():
+        if user_interest in row['description'].lower() or user_interest in row['title'].lower():
+            matches.append(row.to_dict())
+    return matches
 
 def match_courses_with_gemini(user_interest, courses):
-    model = genai.GenerativeModel('models/text-bison-001')
+    model = genai.GenerativeModel('gemini-1.5-pro')
     
     prompt = f"""
 You are an academic advisor at UC Berkeley.
@@ -51,7 +44,6 @@ Format:
    - Why it matches
    - Link
 """
-
     response = model.generate_content(prompt)
     return response.text
 
@@ -71,19 +63,22 @@ def create_pdf(gemini_output):
 # --- STREAMLIT APP ---
 
 st.title("📚 UC Berkeley Course Finder")
+
 user_interest = st.text_input("Enter your academic interests (e.g., AI, entrepreneurship, sustainability):")
 
 if st.button("Find Matching Courses"):
     if user_interest:
-        st.write("Scraping Berkeley courses...")
-        courses = scrape_courses(user_interest)
+        st.write("Loading Berkeley courses...")
+        courses_df = load_courses()
 
-        if not courses:
-            st.warning("No courses found. Try a different keyword.")
+        matched_courses = filter_courses(user_interest, courses_df)
+
+        if not matched_courses:
+            st.warning("No matching courses found. Try a different keyword.")
         else:
-            st.success(f"Scraped {len(courses)} courses. Now asking Gemini for recommendations...")
+            st.success(f"Found {len(matched_courses)} matching courses. Now asking Gemini for recommendations...")
 
-            course_list_text = "\n".join([f"{c['title']}: {c['description']} ({c['link']})" for c in courses])
+            course_list_text = "\n".join([f"{c['title']}: {c['description']} ({c['link']})" for c in matched_courses])
             gemini_output = match_courses_with_gemini(user_interest, course_list_text)
 
             st.write("✅ Gemini generated course recommendations!")
